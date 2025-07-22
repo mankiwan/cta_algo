@@ -4,17 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a modular CTA (Commodity Trading Advisor) strategy framework for Bitcoin trading. The system fetches data from the Glassnode API, generates trading signals using momentum and mean reversion strategies, performs backtesting, and provides performance analysis with visualization.
+This is a modular CTA (Commodity Trading Advisor) strategy backtest framework for Bitcoin trading. The system fetches historical Bitcoin price data from the Glassnode API, generates trading signals using momentum and mean reversion strategies, performs backtesting, and provides performance analysis with visualization. This is a research-focused project for strategy development, not for live trading.
 
 ## Core Components
 
-- **main.py**: Entry point that orchestrates the entire workflow (data loading, signal generation, backtesting, analysis, plotting)
+- **download_data.py**: Standalone script for downloading Bitcoin price data from Glassnode API with flexible parameters
+- **api.py**: `GlassnodeAPI` class for fetching Bitcoin price data with support for multiple timeframes and date ranges
+- **main.py**: Entry point that orchestrates the backtest workflow (data loading, signal generation, backtesting, analysis, plotting)
 - **strategy.py**: Contains the `Strategy` class with technical indicators (Supertrend, RSI, Bollinger Bands) and signal generation logic
-- **api.py**: `GlassnodeAPI` class for fetching Bitcoin price data from Glassnode API
 - **backtest.py**: `Backtester` class that simulates trading with position management and equity tracking
 - **analyzer.py**: `Analyzer` class that computes performance metrics (Sharpe, Calmar, drawdown, returns)
 - **plotting.py**: `Plotter` class for visualizing equity curves and performance results
-- **test_data.csv**: Sample/cached data file for offline testing
 
 ## Development Commands
 
@@ -31,9 +31,20 @@ source venv/bin/activate  # macOS/Linux
 pip install -r requirements.txt
 ```
 
-### Running the Application
+### Data Download (Primary Workflow)
 ```bash
-# Run the main strategy
+# Download data with specific date range (required parameters)
+python download_data.py 2024-01-01 2024-06-01              # 1h data, JSON API format
+python download_data.py 2024-01-01 2024-01-31 10m          # 10m data, JSON API format
+python download_data.py 2024-01-01 2024-12-31 24h csv      # Daily data, CSV API format
+
+# Available intervals: 10m, 1h, 24h, 1w, 1month
+# Available API formats: json, csv (output is always CSV file)
+```
+
+### Running Backtest
+```bash
+# Run backtest with downloaded data
 python main.py
 ```
 
@@ -45,11 +56,21 @@ GLASSNODE_APIKEY=your_actual_api_key
 
 ## Data Flow Architecture
 
-1. **Data Loading**: Checks for `test_data.csv` first, falls back to Glassnode API if not found
-2. **Signal Generation**: Applies technical indicators (Supertrend, RSI, Bollinger Bands) to generate buy/sell/hold signals
-3. **Backtesting**: Simulates trading positions and tracks equity changes based on signals
-4. **Analysis**: Computes risk-adjusted performance metrics
-5. **Visualization**: Plots equity curve and displays performance statistics
+1. **Data Download**: Use `download_data.py` to fetch Bitcoin price data from Glassnode API with custom date ranges and intervals
+2. **Data Storage**: Data is saved as CSV files with descriptive names (e.g., `btc_1h_2024-01-01_2024-06-01.csv`)
+3. **Data Loading**: `main.py` loads data from CSV files for backtesting
+4. **Signal Generation**: Applies technical indicators (Supertrend, RSI, Bollinger Bands) to generate buy/sell/hold signals
+5. **Backtesting**: Simulates trading positions and tracks equity changes based on signals
+6. **Analysis**: Computes risk-adjusted performance metrics
+7. **Visualization**: Plots equity curve and displays performance statistics
+
+## Glassnode API Integration
+
+- **Endpoint**: `/v1/metrics/market/price_usd_close`
+- **Supported Intervals**: 10m, 1h, 24h, 1w, 1month
+- **Required Parameters**: start_time (s), end_time (u) as unix timestamps
+- **Optional Parameters**: interval (i), format (f: json/csv)
+- **Authentication**: API key via query parameter
 
 ## Key Technical Details
 
@@ -58,6 +79,7 @@ GLASSNODE_APIKEY=your_actual_api_key
 - Performance metrics include Sharpe ratio, Calmar ratio, max drawdown, and annualized returns
 - Data is timestamped and merged between components using pandas DataFrames
 - The Supertrend indicator implementation is currently a placeholder (returns dummy value of 1)
+- CSV files are named descriptively with format: `btc_{interval}_{start_date}_{end_date}.csv`
 
 ## Dependencies
 

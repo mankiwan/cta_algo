@@ -62,8 +62,12 @@ def main():
         print(f"Invalid format: {format_type}. Use: json or csv")
         return
     
-    # Generate filename
-    filename = f"btc_{interval}_{start_date_str}_{end_date_str}.csv"
+    # Create data directory if it doesn't exist
+    data_dir = "data"
+    os.makedirs(data_dir, exist_ok=True)
+    
+    # Generate filename with path
+    filename = os.path.join(data_dir, f"btc_{interval}_{start_date_str}_{end_date_str}.csv")
     
     # Show what we're downloading
     print(f"Downloading BTC {interval} data from {start_date_str} to {end_date_str}")
