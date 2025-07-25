@@ -2,85 +2,98 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Project Architecture
 
-This is a modular CTA (Commodity Trading Advisor) strategy backtest framework for Bitcoin trading. The system fetches historical Bitcoin price data from the Glassnode API, generates trading signals using momentum and mean reversion strategies, performs backtesting, and provides performance analysis with visualization. This is a research-focused project for strategy development, not for live trading.
+This is a Bitcoin trading strategy project focused on **Bollinger Bands + RSI strategy** with two main implementations:
 
-## Core Components
+### Core Files:
+- **main.py**: Interactive framework entry point with data selection and user preferences
+- **strategy.py**: Core strategy class implementing BBand+RSI signals and coordination
+- **backtest.py**: Backtesting engine for running simulations and equity curve generation
+- **analyzer.py**: Modular metrics calculation with individual functions for each metric
+- **optimizer.py**: Parameter optimization engine with grid search and sensitivity analysis
+- **plotting.py**: Visualization components for equity curves and optimization heatmaps
+- **api.py**: GlassnodeAPI class for fetching Bitcoin price data from external API
+- **draft_backtest.py**: Original standalone implementation (reference)
+- **download_data.py**: Standalone data fetching utility
 
-- **download_data.py**: Standalone script for downloading Bitcoin price data from Glassnode API with flexible parameters
-- **api.py**: `GlassnodeAPI` class for fetching Bitcoin price data with support for multiple timeframes and date ranges
-- **main.py**: Entry point that orchestrates the backtest workflow (data loading, signal generation, backtesting, analysis, plotting)
-- **strategy.py**: Contains the `Strategy` class with technical indicators (Supertrend, RSI, Bollinger Bands) and signal generation logic
-- **backtest.py**: `Backtester` class that simulates trading with position management and equity tracking
-- **analyzer.py**: `Analyzer` class that computes performance metrics (Sharpe, Calmar, drawdown, returns)
-- **plotting.py**: `Plotter` class for visualizing equity curves and performance results
+### Strategy Logic (BBand + RSI):
+- **Long Signal**: Price touches lower Bollinger Band AND RSI < 30 (oversold)
+- **Short Signal**: Price touches upper Bollinger Band AND RSI > 70 (overbought)  
+- **Exit**: Price returns to middle Bollinger Band (moving average)
+- **Parameters**: BB window (10-60), BB standard deviation multiplier (1.0-3.5), RSI fixed at 14 periods
 
-## Development Commands
+### Modular Architecture Flow:
+1. **Data**: User selects data source (local CSV or Glassnode API via `api.py`)
+2. **Strategy** (`strategy.py`): Calculates BBand+RSI indicators and generates signals
+3. **Backtesting** (`backtest.py`): Simulates trades, calculates PnL and equity curve
+4. **Analysis** (`analyzer.py`): Computes individual performance metrics (Sharpe, Calmar, etc.)
+5. **Optimization** (`optimizer.py`): Grid search across parameter ranges
+6. **Visualization** (`plotting.py`): Charts equity curves and optimization heatmaps
 
-### Environment Setup
+### Component Interactions:
+- `Strategy` coordinates `Backtester`, `Analyzer`, `Optimizer`, and `Plotter`
+- `Backtester` uses `Analyzer` for metrics calculation
+- `Optimizer` uses `Analyzer` for parameter evaluation
+- All components are loosely coupled and individually testable
+
+## Common Commands
+
+### Setup and Dependencies
 ```bash
 # Create virtual environment
 python3 -m venv venv
-
-# Activate virtual environment
 source venv/bin/activate  # macOS/Linux
-# venv\Scripts\activate    # Windows
+# venv\Scripts\activate   # Windows
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-### Data Download (Primary Workflow)
+### Running the Application
 ```bash
-# Download data with specific date range (required parameters)
-python download_data.py 2024-01-01 2024-06-01              # 1h data, JSON API format
-python download_data.py 2024-01-01 2024-01-31 10m          # 10m data, JSON API format
-python download_data.py 2024-01-01 2024-12-31 24h csv      # Daily data, CSV API format
-
-# Available intervals: 10m, 1h, 24h, 1w, 1month
-# Available API formats: json, csv (output is always CSV file)
-```
-
-### Running Backtest
-```bash
-# Run backtest with downloaded data
+# Interactive modular framework (recommended)
 python main.py
+
+# Standalone BBand+RSI optimization (reference implementation)
+python draft_backtest.py
+
+# Standalone data download utility
+python download_data.py
 ```
 
 ### Environment Configuration
-Create a `.env` file in the project root with:
+Create `.env` file with:
 ```
-GLASSNODE_APIKEY=your_actual_api_key
+GLASSNODE_APIKEY=your_api_key_here
 ```
 
-## Data Flow Architecture
+### Data Management
+- Historical data stored in `data/` directory with format: `btc_{interval}_{start_date}_{end_date}.csv`
+- Supported intervals: 10m, 1h, 24h
+- Data range: 2010-07-17 to 2025-07-22
 
-1. **Data Download**: Use `download_data.py` to fetch Bitcoin price data from Glassnode API with custom date ranges and intervals
-2. **Data Storage**: Data is saved as CSV files with descriptive names (e.g., `btc_1h_2024-01-01_2024-06-01.csv`)
-3. **Data Loading**: `main.py` loads data from CSV files for backtesting
-4. **Signal Generation**: Applies technical indicators (Supertrend, RSI, Bollinger Bands) to generate buy/sell/hold signals
-5. **Backtesting**: Simulates trading positions and tracks equity changes based on signals
-6. **Analysis**: Computes risk-adjusted performance metrics
-7. **Visualization**: Plots equity curve and displays performance statistics
+## Development Notes
 
-## Glassnode API Integration
+### Modular Design Principles
+- **Single Responsibility**: Each class handles one specific concern
+- **Loose Coupling**: Components interact through well-defined interfaces
+- **Reusability**: Individual functions can be used independently
+- **Testability**: Each component can be tested in isolation
 
-- **Endpoint**: `/v1/metrics/market/price_usd_close`
-- **Supported Intervals**: 10m, 1h, 24h, 1w, 1month
-- **Required Parameters**: start_time (s), end_time (u) as unix timestamps
-- **Optional Parameters**: interval (i), format (f: json/csv)
-- **Authentication**: API key via query parameter
+### Key Design Patterns
+- **Strategy Pattern**: `Strategy` class coordinates different components
+- **Composition**: `Strategy` uses `Backtester`, `Analyzer`, `Optimizer`, `Plotter`
+- **Template Method**: `Analyzer` provides individual metric functions that can be combined
 
-## Key Technical Details
+### Extending the Framework
+- **New Strategies**: Extend `Strategy` class, implement `generate_signals()` method
+- **New Metrics**: Add functions to `Analyzer` class following existing patterns
+- **New Optimizers**: Extend `Optimizer` class with different search algorithms
+- **New Visualizations**: Add methods to `Plotter` class
 
-- The strategy combines momentum (Supertrend + RSI) and mean reversion (Bollinger Bands) approaches
-- Backtesting uses simple position tracking (1=long, -1=short, 0=flat) 
-- Performance metrics include Sharpe ratio, Calmar ratio, max drawdown, and annualized returns
-- Data is timestamped and merged between components using pandas DataFrames
-- The Supertrend indicator implementation is currently a placeholder (returns dummy value of 1)
-- CSV files are named descriptively with format: `btc_{interval}_{start_date}_{end_date}.csv`
-
-## Dependencies
-
-Core packages: numpy, pandas, matplotlib, yfinance, scipy, requests, python-dotenv
+### Component APIs
+- **Strategy**: `backtest(long_short, window, threshold)`, `optimize(window, threshold)`
+- **Analyzer**: Individual metric functions + `calculate_all_metrics(df)`
+- **Optimizer**: `optimize_parameters(param_ranges, metric, mode)`
+- **Plotter**: `plot_equity_curve(df)`, `plot_optimization_heatmap(results_df)`

@@ -8,7 +8,7 @@ class GlassnodeAPI:
     """
     def __init__(self, api_key):
         self.api_key = api_key
-        self.base_url = 'https://api.glassnode.com/v1/metrics/market/price_usd_close'
+        self.base_url = 'https://api.glassnode.com/v1/metrics/market/price_usd_ohlc'
 
     def fetch_btc_data(self, start_time, end_time, interval='1h', 
                       save_file='test_data.csv', format='json'):
@@ -36,8 +36,8 @@ class GlassnodeAPI:
             'a': 'BTC',
             'api_key': self.api_key,
             'i': interval,
-            's': start_timestamp,
-            'u': end_timestamp,
+            # 's': start_timestamp,
+            # 'u': end_timestamp,
             'f': format
         }
         
@@ -51,22 +51,66 @@ class GlassnodeAPI:
                 # Handle CSV response from API
                 from io import StringIO
                 df = pd.read_csv(StringIO(response.text))
+                
+                # Handle different CSV column formats
                 if 't' in df.columns and 'v' in df.columns:
+                    # Old format: timestamp, value
                     df = df.rename(columns={'t': 'timestamp', 'v': 'close'})
+                elif 't' in df.columns and any(col in df.columns for col in ['o', 'h', 'l', 'c']):
+                    # New format: timestamp, open, high, low, close
+                    column_mapping = {'t': 'timestamp'}
+                    if 'o' in df.columns:
+                        column_mapping['o'] = 'open'
+                    if 'h' in df.columns:
+                        column_mapping['h'] = 'high' 
+                    if 'l' in df.columns:
+                        column_mapping['l'] = 'low'
+                    if 'c' in df.columns:
+                        column_mapping['c'] = 'close'
+                    df = df.rename(columns=column_mapping)
+                    
                 df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
                 
             else:
-                # Handle JSON response
+                # Handle JSON response with new data structure
+                # Format: [{"t": 1279407600, "o": {"c": 0.04951, "h": 0.04951, "l": 0.04951, "o": 0.04951}}, ...]
                 data = response.json()
                 if not data:
                     print('No data returned from API')
                     return pd.DataFrame()
+                
+                # Parse new data structure
+                parsed_data = []
+                for item in data:
+                    if 't' in item and 'o' in item:
+                        ohlc = item['o']
+                        parsed_data.append({
+                            'timestamp': item['t'],
+                            'open': ohlc.get('o', 0),
+                            'high': ohlc.get('h', 0), 
+                            'low': ohlc.get('l', 0),
+                            'close': ohlc.get('c', 0)
+                        })
+                
+                if not parsed_data:
+                    print('No valid OHLC data found in response')
+                    return pd.DataFrame()
                     
-                df = pd.DataFrame(data)
-                df.columns = ['timestamp', 'close']
+                df = pd.DataFrame(parsed_data)
                 df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
             
             df = df.sort_values('timestamp').reset_index(drop=True)
+            
+            # Ensure we have all required columns for strategy
+            required_columns = ['timestamp', 'open', 'high', 'low', 'close']
+            for col in required_columns:
+                if col not in df.columns:
+                    if col != 'timestamp':  # Fill missing OHLC with close price
+                        df[col] = df.get('close', 0)
+            
+            # Reorder columns for consistency
+            available_columns = [col for col in required_columns if col in df.columns]
+            df = df[available_columns]
             
             # Save to file regardless of API format
             if save_file:

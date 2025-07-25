@@ -1,33 +1,49 @@
 import pandas as pd
+import numpy as np
+from analyzer import Analyzer
+
 
 class Backtester:
-    """
-    Simulates backtesting logic for CTA strategies.
-    """
-    def __init__(self, initial_capital=10000):
-        self.initial_capital = initial_capital
-
-    def run_backtest(self, df, signals):
-        """
-        Simulate positions, PnL, and equity curve.
-        Returns a DataFrame with equity and positions.
-        """
-        df = df.copy()
-        df = df.merge(signals, on='timestamp', how='left')
-        if 'signal' not in df.columns:
-            df['signal'] = 0
-        else:
-            df['signal'] = df['signal'].fillna(0)
-        df['position'] = 0
-        df['cash'] = self.initial_capital
-        df['equity'] = self.initial_capital
-        position = 0
-        for i in range(1, len(df)):
-            if df['signal'].iloc[i] == 1:
-                position = 1
-            elif df['signal'].iloc[i] == -1:
-                position = -1
-            df.at[df.index[i], 'position'] = position
-            df.at[df.index[i], 'cash'] = df['cash'].iloc[i-1]
-            df.at[df.index[i], 'equity'] = df['cash'].iloc[i-1] + position * (df['close'].iloc[i] - df['close'].iloc[i-1])
-        return df 
+    def __init__(self):
+        self.analyzer = Analyzer()
+    
+    def run_backtest(self, df):
+        """Run backtest and return results with equity curve"""
+        df_test = df.copy()
+        
+        # Calculate returns
+        df_test['returns'] = df_test['close'].pct_change().fillna(0)
+        
+        # Calculate PnL
+        df_test['pnl'] = df_test['position'].shift(1) * df_test['returns']
+        df_test['cumulative_pnl'] = df_test['pnl'].cumsum()
+        df_test['equity_curve'] = (1 + df_test['pnl']).cumprod()
+        
+        # Calculate drawdown
+        df_test['running_max'] = df_test['equity_curve'].cummax()
+        df_test['drawdown'] = (df_test['equity_curve'] - df_test['running_max']) / df_test['running_max']
+        
+        # Calculate metrics using Analyzer
+        metrics = self.analyzer.calculate_all_metrics(df_test)
+        
+        # Print results
+        self._print_results(metrics, df_test)
+        
+        return df_test
+    
+    def calculate_metrics(self, df):
+        """Calculate performance metrics using Analyzer (for backward compatibility)"""
+        return self.analyzer.calculate_all_metrics(df)
+    
+    def _print_results(self, metrics, df):
+        """Print backtest results"""
+        print(f"\n=== Backtest Results ===")
+        print(f"Total Return: {metrics['total_return']:.2f}%")
+        print(f"Annualized Return: {metrics['annual_return']:.2f}%")
+        print(f"Sharpe Ratio: {metrics['sharpe']:.3f}")
+        print(f"Max Drawdown: {metrics['max_drawdown']:.2f}%")
+        print(f"Calmar Ratio: {metrics['calmar']:.3f}")
+        print(f"Total Trades: {metrics['total_trades']}")
+        print(f"Win Rate: {metrics['win_rate']:.2f}%")
+        print(f"Data Period: {df['timestamp'].min().date()} to {df['timestamp'].max().date()}")
+        print(f"Total Days: {len(df)}")
