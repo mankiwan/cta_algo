@@ -7,7 +7,7 @@ class Backtester:
     def __init__(self):
         self.analyzer = Analyzer()
     
-    def run_backtest(self, df):
+    def run_backtest(self, df, silent=False):
         """Run backtest and return results with equity curve"""
         df_test = df.copy()
         
@@ -26,8 +26,9 @@ class Backtester:
         # Calculate metrics using Analyzer
         metrics = self.analyzer.calculate_all_metrics(df_test)
         
-        # Print results
-        self._print_results(metrics, df_test)
+        # Print results only if not silent
+        if not silent:
+            self._print_results(metrics, df_test)
         
         return df_test
     

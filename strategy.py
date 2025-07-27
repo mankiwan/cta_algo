@@ -12,14 +12,12 @@ class Strategy:
         self.plotter = Plotter()
         self.optimizer = Optimizer(self, self.backtester)
     
-    def calculate_rsi(self, prices, window=14):
-        """Calculate RSI indicator"""
-        delta = prices.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-        return rsi
+    def calculate_zscore(self, prices, window):
+        """Calculate z-score: (price - moving_average) / standard_deviation"""
+        ma = prices.rolling(window).mean()
+        std = prices.rolling(window).std()
+        zscore = (prices - ma) / std
+        return zscore, ma
     
     def calculate_bollinger_bands(self, prices, window, multiplier):
         """Calculate Bollinger Bands"""
@@ -29,50 +27,25 @@ class Strategy:
         lower = ma - (multiplier * std)
         return ma, upper, lower
     
-    def generate_signals(self, window, threshold, long_short="long short"):
-        """Generate BBand+RSI trading signals"""
+    def generate_signals(self, window, threshold):
+        """Generate simple long-only z-score signals"""
         df = self.data.copy()
         
-        # Calculate indicators
-        df['bb_ma'], df['bb_upper'], df['bb_lower'] = self.calculate_bollinger_bands(
-            df['close'], window, threshold
-        )
-        df['rsi'] = self.calculate_rsi(df['close'], 14)
+        # Calculate z-score
+        df['zscore'], df['ma'] = self.calculate_zscore(df['close'], window)
         
-        # Initialize positions
-        df['position'] = 0
-        
-        # Trading signals based on draft_backtest.py logic
-        if long_short in ["long", "long short"]:
-            # Long signal: price touches lower band AND RSI < 30
-            long_condition = (df['close'] <= df['bb_lower']) & (df['rsi'] < 30)
-            df.loc[long_condition, 'position'] = 1
-            
-            # Exit long when price returns to middle band
-            exit_long = (df['close'] >= df['bb_ma']) & (df['position'].shift(1) == 1)
-            df.loc[exit_long, 'position'] = 0
-        
-        if long_short in ["short", "long short"]:
-            # Short signal: price touches upper band AND RSI > 70
-            short_condition = (df['close'] >= df['bb_upper']) & (df['rsi'] > 70)
-            df.loc[short_condition, 'position'] = -1
-            
-            # Exit short when price returns to middle band
-            exit_short = (df['close'] <= df['bb_ma']) & (df['position'].shift(1) == -1)
-            df.loc[exit_short, 'position'] = 0
-        
-        # Forward fill positions (hold until exit signal)
-        df['position'] = df['position'].replace(0, np.nan).fillna(method='ffill').fillna(0)
+        # Simple vectorized position logic: 1 if zscore > threshold, else 0
+        df['position'] = np.where(df['zscore'] > threshold, 1, 0)
         
         return df
     
-    def backtest(self, long_short="long short", window=20, threshold=2.0):
+    def backtest(self, window=20, threshold=2.0):
         """Run backtest with given parameters"""
-        print(f"\n=== Backtesting BBand+RSI Strategy ===")
-        print(f"Parameters: BB Window={window}, BB Multiplier={threshold}, Mode={long_short}")
+        print(f"\n=== Backtesting Long-Only Z-Score Strategy ===")
+        print(f"Parameters: MA Window={window}, Z-Score Threshold={threshold}")
         
         # Generate signals
-        df_signals = self.generate_signals(window, threshold, long_short)
+        df_signals = self.generate_signals(window, threshold)
         
         # Run backtest
         results = self.backtester.run_backtest(df_signals)
@@ -82,7 +55,7 @@ class Strategy:
         
         return results
     
-    def optimize(self, window=(10, 60, 5), threshold=(1.0, 3.5, 0.25), metric='sharpe'):
+    def optimize(self, window=(10, 60, 5), threshold=(1.0, 3.0, 0.25), metric='sharpe'):
         """Optimize strategy parameters using the Optimizer class"""
         param_ranges = {
             'window': window,
@@ -90,7 +63,7 @@ class Strategy:
         }
         
         # Run optimization
-        results_df = self.optimizer.optimize_parameters(param_ranges, metric, 'long short')
+        results_df = self.optimizer.optimize_parameters(param_ranges, metric)
         
         # Plot optimization heatmap
         self.plotter.plot_optimization_heatmap(results_df, 'window', 'threshold', metric)

@@ -1,16 +1,14 @@
 import pandas as pd
 import numpy as np
 from itertools import product
-from analyzer import Analyzer
 
 
 class Optimizer:
     def __init__(self, strategy_instance, backtester):
         self.strategy = strategy_instance
         self.backtester = backtester
-        self.analyzer = Analyzer()
     
-    def optimize_parameters(self, param_ranges, metric='sharpe', mode='long short'):
+    def optimize_parameters(self, param_ranges, metric='sharpe'):
         """
         Optimize strategy parameters using grid search
         
@@ -18,14 +16,12 @@ class Optimizer:
             param_ranges: dict with parameter ranges
                 e.g., {'window': (10, 60, 5), 'threshold': (1.0, 3.5, 0.25)}
             metric: optimization target ('sharpe', 'calmar', 'annual_return')
-            mode: trading mode ('long', 'short', 'long short')
         
         Returns:
             DataFrame with optimization results
         """
         print(f"\n=== Optimizing Strategy Parameters ===")
         print(f"Target metric: {metric}")
-        print(f"Trading mode: {mode}")
         
         # Generate parameter combinations
         param_combinations = self._generate_param_combinations(param_ranges)
@@ -41,12 +37,14 @@ class Optimizer:
                 # Generate signals with current parameters
                 df_signals = self.strategy.generate_signals(
                     window=params['window'],
-                    threshold=params['threshold'],
-                    long_short=mode
+                    threshold=params['threshold']
                 )
                 
-                # Calculate metrics using Analyzer
-                metrics = self.analyzer.calculate_all_metrics(df_signals)
+                # Run full backtest using Backtester (includes data prep + metrics)
+                df_backtest = self.backtester.run_backtest(df_signals, silent=True)
+                
+                # Extract metrics from backtest results
+                metrics = self.backtester.calculate_metrics(df_backtest)
                 
                 # Store results
                 result = {

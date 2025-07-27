@@ -69,7 +69,7 @@ class Plotter:
         pivot_data = results_df.pivot(index=y_col, columns=x_col, values=value_col)
         
         plt.figure(figsize=(12, 8))
-        sns.heatmap(pivot_data, annot=True, fmt='.3f', cmap='RdYlGn', center=0)
+        sns.heatmap(pivot_data, annot=True, fmt='.2f', cmap='RdYlGn', center=0)
         plt.title(f'Strategy Optimization: {value_col.title()} by Parameters')
         plt.xlabel(f'{x_col.title()} (BB Multiplier)' if x_col == 'threshold' else x_col.title())
         plt.ylabel(f'{y_col.title()} (BB Window)' if y_col == 'window' else y_col.title())
