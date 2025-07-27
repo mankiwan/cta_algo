@@ -1,17 +1,26 @@
-# CTA Bitcoin Strategy
+# Bitcoin Z-Score Mean Reversion Strategy
 
-A modular CTA (Commodity Trading Advisor) strategy framework for Bitcoin, supporting both momentum and mean reversion models. Data is fetched from Glassnode API or local CSV, and the framework includes backtesting, analysis, and plotting modules.
+A simplified educational framework for Bitcoin trading using Z-Score mean reversion. This project demonstrates clean, modular architecture with comprehensive backtesting and analysis capabilities.
+
+## Strategy Overview
+
+**Z-Score Mean Reversion** - A long-only strategy that:
+- Calculates z-score: `(price - moving_average) / standard_deviation`
+- Enters long positions when `z-score > threshold` (price significantly above MA)
+- Stays in cash when `z-score ≤ threshold`
+- Simple logic: `position = 1 if zscore > threshold else 0`
 
 ## Project Structure
 
-- `main.py`: Main entry point to run the strategy
-- `strategy.py`: Contains momentum and mean reversion models (e.g., Supertrend+RSI, Bollinger Bands)
-- `api.py`: Fetches data from Glassnode API and saves to CSV
-- `analyzer.py`: Analyzes backtest results (Sharpe, Calmar, drawdown, annual return, etc.)
-- `backtest.py`: Backtesting logic (positions, PnL, equity)
-- `plotting.py`: Plots equity curve and performance metrics
-- `requirements.txt`: Required Python packages
-- `test_data.csv`: Example data for offline testing
+- `main.py`: Interactive framework with data selection and user preferences
+- `strategy.py`: Z-Score strategy implementation with signal generation
+- `backtest.py`: Backtesting engine with comprehensive metrics calculation
+- `analyzer.py`: 13 performance metrics including Sharpe, Sortino, and drawdown analysis
+- `optimizer.py`: Parameter optimization with grid search (uses Backtester internally)
+- `plotting.py`: Visualization with Z-Score charts and equity curves
+- `api.py`: Glassnode API integration for fetching Bitcoin price data
+- `download_data.py`: Standalone data fetching utility
+- `draft_backtest.py`: Original BBand+RSI implementation (reference)
 
 ## Quick Start Guide
 
@@ -50,10 +59,62 @@ pip install -r requirements.txt
 python main.py
 ```
 
-- If `test_data.csv` exists, it will use that for backtesting.
-- If not, it will fetch data from Glassnode using your API key and save it as `test_data.csv`.
+The framework will:
+- Prompt you to select data source (local CSV or Glassnode API)
+- Allow date range selection for backtesting
+- Run optimization across parameter ranges
+- Display comprehensive metrics and visualizations
 
-### 6. Deactivate the virtual environment (when done)
+### 6. Example Usage
+
+**Single Backtest:**
+```python
+# Edit main.py to uncomment backtest section
+strategy.backtest(window=40, threshold=1.75)
+```
+
+**Parameter Optimization:**
+```python
+strategy.optimize(
+    window=(10, 100, 10),      # MA window: 10, 20, 30, ..., 100
+    threshold=(0, 2.5, 0.25)   # Z-Score threshold: 0, 0.25, 0.5, ..., 2.5
+)
+```
+
+### 7. Deactivate the virtual environment (when done)
 ```bash
 deactivate
 ```
+
+## Performance Metrics
+
+The framework calculates 13 comprehensive metrics:
+
+**Returns & Risk-Adjusted:**
+- Total Return, Annualized Return
+- Sharpe Ratio, Sortino Ratio, Calmar Ratio
+
+**Risk Analysis:**
+- Max Drawdown, Recovery Time
+- Max Consecutive Losses
+
+**Trading Efficiency:**
+- Profit Factor, Win Rate, Total Trades
+- Time in Market, Average Trade Duration
+
+## Visualization Features
+
+- **Price Chart**: Moving average with standard deviation bands
+- **Z-Score Chart**: Threshold lines and position markers
+- **Equity Curve**: Strategy vs buy-and-hold comparison
+- **Drawdown Chart**: Portfolio risk visualization
+- **Optimization Heatmap**: Parameter performance analysis
+
+## Educational Focus
+
+This project emphasizes:
+- ✅ Clean, readable code for learning
+- ✅ Modular architecture (easy to extend)
+- ✅ Comprehensive documentation
+- ✅ Fixed common backtesting biases
+- ✅ Simple vectorized strategy logic

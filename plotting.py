@@ -12,35 +12,93 @@ class Plotter:
         """Plot equity curve and key indicators"""
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
         
-        # 1. Price with Bollinger Bands and signals
-        ax1.plot(df['timestamp'], df['close'], label='Price', color='black', linewidth=1)
-        if 'bb_upper' in df.columns:
-            ax1.plot(df['timestamp'], df['bb_upper'], label='BB Upper', color='red', alpha=0.7)
-            ax1.plot(df['timestamp'], df['bb_ma'], label='BB Middle', color='blue', alpha=0.7)
-            ax1.plot(df['timestamp'], df['bb_lower'], label='BB Lower', color='green', alpha=0.7)
-            ax1.fill_between(df['timestamp'], df['bb_upper'], df['bb_lower'], alpha=0.1, color='gray')
+        # 1. Price with Moving Average and signals
+        ax1.plot(df['timestamp'], df['close'], label='Price', color='black', linewidth=1.5)
         
-        # Mark buy/sell signals
-        buy_signals = df[df['position'] > df['position'].shift(1)]
-        sell_signals = df[df['position'] < df['position'].shift(1)]
-        ax1.scatter(buy_signals['timestamp'], buy_signals['close'], color='green', marker='^', s=50, label='Buy')
-        ax1.scatter(sell_signals['timestamp'], sell_signals['close'], color='red', marker='v', s=50, label='Sell')
+        # Add moving average if available
+        if 'ma' in df.columns:
+            ax1.plot(df['timestamp'], df['ma'], label='Moving Average', color='blue', linewidth=2, alpha=0.8)
+            
+            # Add price bands (MA ± 1 and 2 standard deviations) if zscore data available
+            if 'zscore' in df.columns:
+                # Calculate approximate price bands from z-score
+                price_std = (df['close'] - df['ma']).std()
+                upper_1std = df['ma'] + price_std
+                lower_1std = df['ma'] - price_std
+                upper_2std = df['ma'] + 2 * price_std
+                lower_2std = df['ma'] - 2 * price_std
+                
+                ax1.plot(df['timestamp'], upper_2std, color='red', alpha=0.5, linestyle='--', label='MA + 2σ')
+                ax1.plot(df['timestamp'], upper_1std, color='orange', alpha=0.5, linestyle='--', label='MA + 1σ')
+                ax1.plot(df['timestamp'], lower_1std, color='orange', alpha=0.5, linestyle='--', label='MA - 1σ')
+                ax1.plot(df['timestamp'], lower_2std, color='green', alpha=0.5, linestyle='--', label='MA - 2σ')
+                
+                # Fill areas
+                ax1.fill_between(df['timestamp'], upper_1std, upper_2std, alpha=0.1, color='red')
+                ax1.fill_between(df['timestamp'], lower_1std, lower_2std, alpha=0.1, color='green')
         
-        ax1.set_title('Price with Bollinger Bands & Signals')
+        # Mark long entry/exit signals
+        long_entries = df[(df['position'] == 1) & (df['position'].shift(1) != 1)]
+        long_exits = df[(df['position'] == 0) & (df['position'].shift(1) == 1)]
+        
+        ax1.scatter(long_entries['timestamp'], long_entries['close'], 
+                   color='green', marker='^', s=60, label='Long Entry', zorder=5)
+        ax1.scatter(long_exits['timestamp'], long_exits['close'], 
+                   color='red', marker='v', s=60, label='Long Exit', zorder=5)
+        
+        # Highlight periods when long
+        long_periods = df[df['position'] == 1]
+        if len(long_periods) > 0:
+            ax1.fill_between(df['timestamp'], df['close'].min(), df['close'].max(),
+                           where=(df['position'] == 1), alpha=0.05, color='green',
+                           label='Long Position Periods')
+        
+        ax1.set_title('Price with Moving Average & Z-Score Strategy Signals')
         ax1.set_ylabel('Price ($)')
         ax1.legend()
         ax1.grid(True, alpha=0.3)
         
-        # 2. RSI
-        if 'rsi' in df.columns:
-            ax2.plot(df['timestamp'], df['rsi'], color='purple', linewidth=1)
-            ax2.axhline(y=70, color='red', linestyle='--', alpha=0.7, label='Overbought (70)')
-            ax2.axhline(y=30, color='green', linestyle='--', alpha=0.7, label='Oversold (30)')
-            ax2.fill_between(df['timestamp'], 70, 100, alpha=0.1, color='red')
-            ax2.fill_between(df['timestamp'], 0, 30, alpha=0.1, color='green')
-            ax2.set_title('RSI Indicator')
-            ax2.set_ylabel('RSI')
-            ax2.set_ylim(0, 100)
+        # 2. Z-Score
+        if 'zscore' in df.columns:
+            ax2.plot(df['timestamp'], df['zscore'], color='purple', linewidth=1, label='Z-Score')
+            
+            # Add threshold lines
+            zscore_max = df['zscore'].max()
+            zscore_min = df['zscore'].min()
+            
+            # Common threshold levels
+            for threshold in [1.0, 1.5, 2.0, 2.5, 3.0]:
+                if threshold <= zscore_max:
+                    ax2.axhline(y=threshold, color='red', linestyle='--', alpha=0.6, 
+                               label=f'Entry +{threshold}' if threshold == 2.0 else '')
+                if -threshold >= zscore_min:
+                    ax2.axhline(y=-threshold, color='green', linestyle='--', alpha=0.6,
+                               label=f'Entry -{threshold}' if threshold == 2.0 else '')
+            
+            ax2.axhline(y=0, color='black', linestyle='-', alpha=0.5, label='Mean (MA)')
+            
+            # Highlight long entry zones with background shading
+            ax2.fill_between(df['timestamp'], 0, df['zscore'].max(), 
+                           where=(df['zscore'] > 1.5), alpha=0.1, color='orange', 
+                           label='Long Entry Zone')
+            
+            # Mark actual entry points
+            entry_points = df[df['position'] == 1]
+            if len(entry_points) > 0:
+                ax2.scatter(entry_points['timestamp'], entry_points['zscore'], 
+                          color='orange', marker='o', s=30, alpha=0.8, 
+                          label='Long Positions', zorder=5)
+            
+            ax2.set_title('Z-Score (Price Deviation from MA)')
+            ax2.set_ylabel('Z-Score')
+            ax2.legend()
+            ax2.grid(True, alpha=0.3)
+        elif 'ma' in df.columns:
+            # Fallback: show price vs MA
+            ax2.plot(df['timestamp'], df['close'], color='black', linewidth=1, label='Price')
+            ax2.plot(df['timestamp'], df['ma'], color='blue', linewidth=1.5, label='Moving Average')
+            ax2.set_title('Price vs Moving Average')
+            ax2.set_ylabel('Price ($)')
             ax2.legend()
             ax2.grid(True, alpha=0.3)
         
@@ -70,9 +128,9 @@ class Plotter:
         
         plt.figure(figsize=(12, 8))
         sns.heatmap(pivot_data, annot=True, fmt='.2f', cmap='RdYlGn', center=0)
-        plt.title(f'Strategy Optimization: {value_col.title()} by Parameters')
-        plt.xlabel(f'{x_col.title()} (BB Multiplier)' if x_col == 'threshold' else x_col.title())
-        plt.ylabel(f'{y_col.title()} (BB Window)' if y_col == 'window' else y_col.title())
+        plt.title(f'Z-Score Strategy Optimization: {value_col.title()} by Parameters')
+        plt.xlabel(f'{x_col.title()} (Z-Score Threshold)' if x_col == 'threshold' else x_col.title())
+        plt.ylabel(f'{y_col.title()} (MA Window)' if y_col == 'window' else y_col.title())
         plt.show()
         
         # Additional summary plot
@@ -95,9 +153,9 @@ class Plotter:
         
         # Correlation between parameters and performance
         ax2.scatter(results_df['window'], results_df['sharpe'], alpha=0.6, label='Window vs Sharpe')
-        ax2.set_xlabel('BB Window')
+        ax2.set_xlabel('MA Window')
         ax2.set_ylabel('Sharpe Ratio')
-        ax2.set_title('Parameter vs Performance')
+        ax2.set_title('MA Window vs Performance')
         ax2.grid(True, alpha=0.3)
         
         # Add trend line

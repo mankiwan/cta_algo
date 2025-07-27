@@ -42,9 +42,24 @@ class Backtester:
         print(f"Total Return: {metrics['total_return']:.2f}%")
         print(f"Annualized Return: {metrics['annual_return']:.2f}%")
         print(f"Sharpe Ratio: {metrics['sharpe']:.3f}")
+        print(f"Sortino Ratio: {metrics['sortino']:.3f}")
         print(f"Max Drawdown: {metrics['max_drawdown']:.2f}%")
         print(f"Calmar Ratio: {metrics['calmar']:.3f}")
+        print(f"Profit Factor: {metrics['profit_factor']:.2f}")
+        
+        print(f"\n=== Trading Statistics ===")
         print(f"Total Trades: {metrics['total_trades']}")
         print(f"Win Rate: {metrics['win_rate']:.2f}%")
-        print(f"Data Period: {df['timestamp'].min().date()} to {df['timestamp'].max().date()}")
+        print(f"Time in Market: {metrics['time_in_market']:.1f}%")
+        print(f"Avg Trade Duration: {metrics['avg_trade_duration']:.1f} days")
+        print(f"Max Consecutive Losses: {metrics['max_consecutive_losses']}")
+        
+        recovery_time = metrics['recovery_time']
+        if recovery_time == float('inf'):
+            print(f"Recovery Time: Never recovered from max drawdown")
+        else:
+            print(f"Recovery Time: {recovery_time:.0f} days")
+        
+        print(f"\n=== Data Period ===")
+        print(f"Period: {df['timestamp'].min().date()} to {df['timestamp'].max().date()}")
         print(f"Total Days: {len(df)}")

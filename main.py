@@ -140,17 +140,17 @@ def main():
 
     # Backtest the strategy by editing manual params and generate metrics like Sharpe, Calmar, MDD, Annualized Return, Total Trades, Win Rate etc.
     # Plot the equity curve as well
-    # strategy.backtest(
-    #     window=20,
-    #     threshold=2.0,
-    # )
+    strategy.backtest(
+        window=40,
+        threshold=1.75,
+    )
 
     # Optimize the strategy by enter manual window and threshold range
     # Plot the heat map of sharpe for each combination
-    strategy.optimize(
-        window=(10, 100, 10),
-        threshold=(0, 2.5, 0.25),
-    )
+    # strategy.optimize(
+    #     window=(10, 100, 10),
+    #     threshold=(0, 2.5, 0.25),
+    # )
 
 
 if __name__ == '__main__':

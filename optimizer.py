@@ -64,8 +64,9 @@ class Optimizer:
         
         # Print top results
         print(f"\nTop 10 parameter combinations by {metric}:")
-        display_cols = ['window', 'threshold', 'sharpe', 'annual_return', 'max_drawdown', 'calmar']
-        print(results_df[display_cols].head(10).to_string(index=False))
+        display_cols = ['window', 'threshold', 'sharpe', 'sortino', 'annual_return', 'max_drawdown', 'calmar', 'profit_factor', 'time_in_market']
+        available_cols = [col for col in display_cols if col in results_df.columns]
+        print(results_df[available_cols].head(10).to_string(index=False))
         
         return results_df
     

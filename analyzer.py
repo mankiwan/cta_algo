@@ -25,7 +25,13 @@ class Analyzer:
             'max_drawdown': self.calculate_max_drawdown(df),
             'calmar': self.calculate_calmar_ratio(pnl_series, df),
             'total_trades': self.calculate_total_trades(df),
-            'win_rate': self.calculate_win_rate(df)
+            'win_rate': self.calculate_win_rate(df),
+            'sortino': self.calculate_sortino_ratio(pnl_series),
+            'profit_factor': self.calculate_profit_factor(df),
+            'time_in_market': self.calculate_time_in_market(df),
+            'avg_trade_duration': self.calculate_avg_trade_duration(df),
+            'max_consecutive_losses': self.calculate_max_consecutive_losses(df),
+            'recovery_time': self.calculate_recovery_time(df)
         }
         
         return metrics
@@ -65,16 +71,17 @@ class Analyzer:
         if len(df) == 0:
             return 0.0
         
-        max_drawdown = df['drawdown'].max() * 100
-        return round(max_drawdown, 2)
+        # Max drawdown is the most negative value (largest loss)
+        max_drawdown = df['drawdown'].min() * 100
+        return round(abs(max_drawdown), 2)
     
     def calculate_calmar_ratio(self, pnl_series, df):
         """Calculate Calmar ratio (Annual Return / Max Drawdown)"""
         annual_return = self.calculate_annual_return(pnl_series)
         max_drawdown = self.calculate_max_drawdown(df)
         
-        if max_drawdown == 0:
-            return 0.0
+        if max_drawdown == 0 or max_drawdown < 0.01:
+            return float('inf') if annual_return > 0 else 0.0
         
         calmar = annual_return / max_drawdown
         return round(calmar, 3)
@@ -184,7 +191,6 @@ class Analyzer:
         if 'drawdown' not in df.columns:
             df['running_max'] = df['equity_curve'].cummax()
             df['drawdown'] = (df['equity_curve'] - df['running_max']) / df['running_max']
-            df['drawdown'] = df['drawdown'].abs()
         
         return df
     
@@ -220,7 +226,13 @@ class Analyzer:
             'max_drawdown': 0.0,
             'calmar': 0.0,
             'total_trades': 0,
-            'win_rate': 0.0
+            'win_rate': 0.0,
+            'sortino': 0.0,
+            'profit_factor': 0.0,
+            'time_in_market': 0.0,
+            'avg_trade_duration': 0.0,
+            'max_consecutive_losses': 0,
+            'recovery_time': 0.0
         }
     
     def print_detailed_analysis(self, df):
@@ -255,3 +267,91 @@ class Analyzer:
             print(f"Total Days: {len(df)}")
         
         return metrics
+    
+    def calculate_time_in_market(self, df):
+        """Calculate percentage of time strategy is invested vs cash"""
+        if 'position' not in df.columns:
+            return 0.0
+        
+        total_periods = len(df)
+        invested_periods = (df['position'] != 0).sum()
+        
+        if total_periods == 0:
+            return 0.0
+            
+        time_in_market = (invested_periods / total_periods) * 100
+        return round(time_in_market, 2)
+    
+    def calculate_avg_trade_duration(self, df):
+        """Calculate average trade duration in days"""
+        if 'position' not in df.columns:
+            return 0.0
+        
+        trade_durations = []
+        current_duration = 0
+        in_trade = False
+        
+        for pos in df['position']:
+            if pos != 0 and not in_trade:
+                # Entering a trade
+                in_trade = True
+                current_duration = 1
+            elif pos != 0 and in_trade:
+                # In a trade
+                current_duration += 1
+            elif pos == 0 and in_trade:
+                # Exiting a trade
+                trade_durations.append(current_duration)
+                in_trade = False
+                current_duration = 0
+        
+        # If still in trade at end
+        if in_trade:
+            trade_durations.append(current_duration)
+        
+        if len(trade_durations) == 0:
+            return 0.0
+        
+        avg_duration = np.mean(trade_durations)
+        return round(avg_duration, 1)
+    
+    def calculate_max_consecutive_losses(self, df):
+        """Calculate maximum consecutive losing trades"""
+        trade_pnls = self._extract_trade_pnls(df)
+        
+        if len(trade_pnls) == 0:
+            return 0
+        
+        max_consecutive = 0
+        current_consecutive = 0
+        
+        for pnl in trade_pnls:
+            if pnl < 0:
+                current_consecutive += 1
+                max_consecutive = max(max_consecutive, current_consecutive)
+            else:
+                current_consecutive = 0
+        
+        return int(max_consecutive)
+    
+    def calculate_recovery_time(self, df):
+        """Calculate time (days) to recover from maximum drawdown"""
+        if 'drawdown' not in df.columns or 'timestamp' not in df.columns:
+            return 0.0
+        
+        # Find the point of maximum drawdown
+        max_dd_idx = df['drawdown'].idxmin()
+        
+        # Find when drawdown returns to 0 (recovery)
+        recovery_data = df.loc[max_dd_idx:].copy()
+        recovery_idx = recovery_data[recovery_data['drawdown'] >= -0.001].index
+        
+        if len(recovery_idx) == 0:
+            # Never recovered
+            return float('inf')
+        
+        recovery_start = df.loc[max_dd_idx, 'timestamp']
+        recovery_end = df.loc[recovery_idx[0], 'timestamp']
+        
+        recovery_days = (recovery_end - recovery_start).days
+        return max(0, recovery_days)

@@ -98,6 +98,21 @@ GLASSNODE_APIKEY=your_api_key_here
 - **Fixed Look-Ahead Bias**: Removed complex signal processing that could peek at future data
 - **Simplified Strategy**: Pure vectorized Z-Score approach with `np.where()` for learning clarity
 - **Modular Design**: Clean separation where `Optimizer` delegates to `Backtester` for consistency
+- **Enhanced Metrics**: Added 6 additional performance metrics for comprehensive analysis
+- **Fixed Drawdown Calculation**: Corrected calculation errors that were showing 0% drawdown
+
+### Performance Metrics Available
+- **Core Returns**: Total Return, Annualized Return
+- **Risk-Adjusted**: Sharpe Ratio, Sortino Ratio, Calmar Ratio
+- **Risk Metrics**: Max Drawdown, Recovery Time, Max Consecutive Losses
+- **Trading Efficiency**: Profit Factor, Win Rate, Total Trades
+- **Market Exposure**: Time in Market, Average Trade Duration
+
+### Visualization Updates
+- **Replaced RSI Chart**: Now shows Z-Score with threshold lines and entry markers
+- **Updated Price Chart**: Shows Moving Average with standard deviation bands
+- **Enhanced Signals**: Clear long entry/exit markers with position highlighting
+- **Improved Labels**: All charts reflect Z-Score strategy instead of Bollinger Bands
 
 ### Component APIs
 - **Strategy**: `backtest(window, threshold)`, `optimize(window, threshold)`
