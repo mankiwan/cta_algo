@@ -114,6 +114,110 @@ GLASSNODE_APIKEY=your_api_key_here
 - **Enhanced Signals**: Clear long entry/exit markers with position highlighting
 - **Improved Labels**: All charts reflect Z-Score strategy instead of Bollinger Bands
 
+## Strategy Analysis & Improvement Recommendations
+
+### Current Strategy Assessment
+
+#### ✅ Strengths
+- **Clean Architecture**: Excellent modular design with clear separation of concerns
+- **Educational Value**: Simple, understandable logic perfect for learning
+- **Comprehensive Metrics**: 13 metrics provide thorough performance analysis
+- **Fixed Biases**: Eliminated look-ahead bias and code duplication
+- **Vectorized Implementation**: Efficient `np.where()` approach
+
+#### ⚠️ Areas for Improvement
+
+##### 1. Strategy Logic Issues
+**Current Problem**: Strategy contradicts typical mean reversion logic
+```python
+# Current: Buy when price is HIGH above moving average (momentum/breakout)
+position = 1 if zscore > threshold else 0  # zscore > 2 = price way above MA
+```
+
+**Mean Reversion Should**: Buy when price is LOW (cheap), sell when HIGH
+```python
+# Typical Mean Reversion: Buy when price is below MA
+position = 1 if zscore < -threshold else 0  # zscore < -2 = price way below MA
+```
+
+##### 2. Risk Management Gaps
+- **No Stop Losses**: Can hold losing positions indefinitely
+- **No Position Sizing**: Always uses 100% capital (very risky)
+- **No Volatility Adjustment**: Same parameters across all market conditions
+- **No Maximum Position Duration**: Could hold for years
+
+##### 3. Market Reality Issues
+- **No Transaction Costs**: Real trading has 0.1%+ fees per trade
+- **No Slippage**: Market orders don't fill at exact backtest prices
+- **No Liquidity Constraints**: Assumes infinite liquidity
+- **24/7 Bitcoin Trading**: Overnight gaps not considered
+
+##### 4. Strategy Robustness
+- **Over-reliance on Z-Score**: No confirmation signals
+- **No Market Regime Detection**: Same logic in bull/bear/sideways markets
+- **No Adaptive Parameters**: Fixed window/threshold regardless of volatility
+
+### Improvement Roadmap
+
+#### Priority 1: Fix Strategy Logic
+```python
+# Option A: True Mean Reversion
+position = 1 if zscore < -threshold else 0  # Buy dips
+
+# Option B: Mean Reversion with Exit
+if zscore < -threshold:     # Price below MA (oversold)
+    position = 1            # Buy
+elif zscore > 0.5:          # Price returns to MA  
+    position = 0            # Exit
+```
+
+#### Priority 2: Add Risk Management
+```python
+# Add position sizing
+capital_per_trade = 0.1  # Risk only 10% per trade
+position = position * capital_per_trade
+
+# Add stop loss
+if current_loss > 0.05:  # 5% stop loss
+    position = 0
+```
+
+#### Priority 3: Add Transaction Costs
+```python
+# In backtest.py
+transaction_cost = 0.001  # 0.1% per trade
+df['pnl'] = df['position'].shift(1) * df['returns'] - transaction_cost * abs(df['position'].diff())
+```
+
+#### Priority 4: Multiple Timeframes
+```python
+# Add confirmation from longer timeframe
+long_term_ma = df['close'].rolling(200).mean()
+trend_filter = df['close'] > long_term_ma  # Only trade with long-term trend
+position = position * trend_filter
+```
+
+#### Priority 5: Regime Detection
+```python
+# Adjust parameters based on volatility
+current_vol = df['returns'].rolling(30).std()
+adaptive_threshold = base_threshold * (current_vol / historical_avg_vol)
+```
+
+### Implementation Timeline
+- **Week 1**: Fix mean reversion logic (buy dips, not breakouts)
+- **Week 2**: Add transaction costs and position sizing
+- **Week 3**: Implement stop losses and maximum holding periods
+- **Week 4**: Add trend filter and volatility adjustment
+
+### Learning Recommendations
+1. **Keep current version** for educational comparison
+2. **Create `strategy_v2.py`** with improvements
+3. **Compare performance** between versions
+4. **Gradually add complexity** while maintaining clean code
+
+**Note**: Current framework is excellent for learning fundamentals. The main issues are strategy logic (momentum vs mean reversion) and missing risk management components.
+
 ### Component APIs
 - **Strategy**: `backtest(window, threshold)`, `optimize(window, threshold)`
 - **Analyzer**: Individual metric functions + `calculate_all_metrics(df)`

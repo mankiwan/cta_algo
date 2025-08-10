@@ -126,31 +126,34 @@ def main():
     # Load data with selection prompt
     data = select_data_file()
     
-    # Get date range for backtesting
-    start_date, end_date = get_date_range()
-    
+    # Prompt to get date range for backtesting
+    # start_date, end_date = get_date_range()
+    # Manual input to get data range
+    start_date = datetime.strptime('2020-05-11', '%Y-%m-%d')
+    end_date = datetime.strptime('2025-07-21', '%Y-%m-%d')
+
     # Filter data by selected date range
     data = filter_data_by_date_range(data, start_date, end_date)
     
     # Get user preferences
-    initial_capital = get_user_preferences()
+    # initial_capital = get_user_preferences()
 
     # Initialize strategy with data (generates buy/sell signals)
     strategy = Strategy(data)
 
     # Backtest the strategy by editing manual params and generate metrics like Sharpe, Calmar, MDD, Annualized Return, Total Trades, Win Rate etc.
     # Plot the equity curve as well
-    strategy.backtest(
-        window=40,
-        threshold=1.75,
-    )
+    # strategy.backtest(
+    #     window=40,
+    #     threshold=1.75,
+    # )
 
     # Optimize the strategy by enter manual window and threshold range
     # Plot the heat map of sharpe for each combination
-    # strategy.optimize(
-    #     window=(10, 100, 10),
-    #     threshold=(0, 2.5, 0.25),
-    # )
+    strategy.optimize(
+        window=(10, 100, 10),
+        threshold=(0, 2.5, 0.25),
+    )
 
 
 if __name__ == '__main__':

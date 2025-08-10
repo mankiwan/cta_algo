@@ -4,4 +4,5 @@ matplotlib>=3.4.0
 yfinance>=0.1.70
 scipy>=1.7.0
 requests
-python-dotenv 
+python-dotenv
+ccxt>=4.0.0 

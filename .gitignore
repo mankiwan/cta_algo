@@ -2,3 +2,6 @@ __pycache__/
 venv/
 data/
 .env
+
+# files
+hyperliquid-trading-live-bot.py
