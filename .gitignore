@@ -2,6 +2,7 @@ __pycache__/
 venv/
 data/
 .env
+.ipynb_checkpoints/
 
 # files
 hyperliquid-trading-live-bot.py

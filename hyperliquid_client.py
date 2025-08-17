@@ -33,6 +33,8 @@ class HyperliquidClient:
             wallet_address: Your Hyperliquid wallet address
             private_key: Your wallet's private key
         """
+        # Initializes the client with wallet credentials, creates CCXT exchange instance 
+        # with rate limiting enabled, and loads market data
         if not wallet_address:
             raise ValueError("wallet_address is required")
         
@@ -52,6 +54,7 @@ class HyperliquidClient:
 
     def _load_markets(self) -> None:
         """Load market data from the exchange."""
+        # Loads market information from the exchange to cache symbol data and trading requirements
         try:
             self.markets = self.exchange.load_markets()
         except Exception as e:
@@ -67,6 +70,7 @@ class HyperliquidClient:
         Returns:
             Amount formatted with correct precision as float
         """
+        # Formats order amounts according to exchange precision requirements to avoid order rejection
         try:
             result = self.exchange.amount_to_precision(symbol, amount)
             return float(result)
@@ -83,6 +87,7 @@ class HyperliquidClient:
         Returns:
             Price formatted with correct precision as float
         """
+        # Formats prices according to exchange precision requirements for proper order formatting
         try:
             result = self.exchange.price_to_precision(symbol, price)
             return float(result)
@@ -98,6 +103,7 @@ class HyperliquidClient:
         Returns:
             Current market price
         """
+        # Retrieves current market price for a trading pair using the midpoint price from market info
         try:
             return float(self.markets[symbol]["info"]["midPx"])
         except Exception as e:
@@ -109,6 +115,7 @@ class HyperliquidClient:
         Returns:
             Account balance data with 'total', 'free', 'used' for each currency
         """
+        # Fetches account balance showing total, free, and used amounts for each currency
         try:
             result = self.exchange.fetch_balance()
             return result
@@ -124,6 +131,7 @@ class HyperliquidClient:
         Returns:
             List of position dictionaries with active positions only
         """
+        # Fetches active positions, filtering out zero-size positions to show only actual holdings
         try:
             positions = self.exchange.fetch_positions(symbols)
             return [pos for pos in positions if float(pos["contracts"]) != 0]
@@ -141,6 +149,7 @@ class HyperliquidClient:
         Returns:
             DataFrame with OHLCV data indexed by timestamp
         """
+        # Fetches historical OHLCV candlestick data and returns a pandas DataFrame with timestamp index and numeric columns
         try:
             ohlcv_data = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
             
@@ -168,6 +177,7 @@ class HyperliquidClient:
         Returns:
             True if successful
         """
+        # Sets leverage multiplier (1-50x) for a specific trading pair
         try:
             self.exchange.set_leverage(leverage, symbol)
             return True
@@ -185,6 +195,7 @@ class HyperliquidClient:
         Returns:
             True if successful
         """
+        # Configures margin mode ("isolated" or "cross") with required leverage parameter
         try:
             self.exchange.set_margin_mode(margin_mode, symbol, params={"leverage": leverage})
             return True
@@ -213,6 +224,7 @@ class HyperliquidClient:
         Returns:
             Order execution details
         """
+        # Places market orders with optional take-profit and stop-loss levels. Formats amounts/prices and handles order chaining for TP/SL
         try:
             formatted_amount = self._amount_to_precision(symbol, amount)
             
@@ -274,6 +286,7 @@ class HyperliquidClient:
         Returns:
             Order details
         """
+        # Places limit orders at specific price levels with reduce-only option support
         try:
             formatted_amount = self._amount_to_precision(symbol, amount)
             formatted_price = self._price_to_precision(symbol, price)
@@ -315,6 +328,7 @@ class HyperliquidClient:
         Returns:
             Order execution details
         """
+        # Convenience function to place market orders using USD amounts instead of contract quantities - automatically converts based on current price
         try:
             current_price = self.get_current_price(symbol)
             contract_amount = usd_amount / current_price
@@ -332,6 +346,7 @@ class HyperliquidClient:
 
     def _place_take_profit_order(self, symbol: str, side: str, amount: float, price: float, take_profit_price: float) -> dict:
         """Internal method to place a take-profit order."""
+        # Internal helper to create take-profit orders with opposite side and reduce-only flag
         tp_price = self._price_to_precision(symbol, take_profit_price)
         close_side = "sell" if side == "buy" else "buy"
         return self.exchange.create_order(
@@ -345,6 +360,7 @@ class HyperliquidClient:
 
     def _place_stop_loss_order(self, symbol: str, side: str, amount: float, price: float, stop_loss_price: float) -> dict:
         """Internal method to place a stop-loss order."""
+        # Internal helper to create stop-loss orders with opposite side and reduce-only flag
         sl_price = self._price_to_precision(symbol, stop_loss_price)
         close_side = "sell" if side == "buy" else "buy"
         return self.exchange.create_order(
@@ -360,6 +376,7 @@ class HyperliquidClient:
 # Utility function for printing with verbosity control
 def my_print(message: str, verbose: bool = True):
     """Print message if verbose is True."""
+    # Simple print function with verbosity control for conditional logging
     if verbose:
         print(message)
 
