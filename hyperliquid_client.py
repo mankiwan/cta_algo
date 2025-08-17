@@ -228,7 +228,7 @@ class HyperliquidClient:
         try:
             formatted_amount = self._amount_to_precision(symbol, amount)
             
-            price = float(self.markets[symbol]["info"]["midPx"])
+            price = self.get_current_price(symbol)
             formatted_price = self._price_to_precision(symbol, price)
             
             params = {"reduceOnly": reduce_only}

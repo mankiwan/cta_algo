@@ -1,4 +1,5 @@
 from strategy import Strategy
+from strategy_v3 import Strategy3
 from api import GlassnodeAPI
 from backtest import Backtester
 from plotting import Plotter
@@ -139,21 +140,19 @@ def main():
     # initial_capital = get_user_preferences()
 
     # Initialize strategy with data (generates buy/sell signals)
-    strategy = Strategy(data)
+    # strategy = Strategy(data)  # Z-Score strategy
+    strategy = Strategy3(data)  # RSI strategy
 
     # Backtest the strategy by editing manual params and generate metrics like Sharpe, Calmar, MDD, Annualized Return, Total Trades, Win Rate etc.
     # Plot the equity curve as well
-    # strategy.backtest(
-    #     window=40,
-    #     threshold=1.75,
-    # )
+    strategy.backtest()
 
     # Optimize the strategy by enter manual window and threshold range
     # Plot the heat map of sharpe for each combination
-    strategy.optimize(
-        window=(10, 100, 10),
-        threshold=(0, 2.5, 0.25),
-    )
+    # strategy.optimize(
+    #     window=(10, 100, 10),
+    #     threshold=(0, 2.5, 0.25),
+    # )
 
 
 if __name__ == '__main__':
